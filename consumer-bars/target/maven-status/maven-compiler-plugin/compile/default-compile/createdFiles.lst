@@ -1,0 +1,8 @@
+com/ticksim/bars/config/WebSocketConfig.class
+com/ticksim/bars/websocket/BarsController.class
+com/ticksim/bars/aggregator/BarAggregator.class
+com/ticksim/bars/consumer/BarsConsumer.class
+com/ticksim/bars/model/OHLCVBar$BarSnapshot.class
+com/ticksim/bars/model/OHLCVBar.class
+com/ticksim/bars/config/KafkaConsumerConfig.class
+com/ticksim/bars/BarsApplication.class

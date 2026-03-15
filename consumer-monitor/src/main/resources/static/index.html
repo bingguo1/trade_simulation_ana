@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Monitor - Live Tick Data</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .navbar {
+            background-color: #161b22 !important;
+            border-bottom: 1px solid #30363d;
+        }
+        .navbar-brand {
+            color: #58a6ff !important;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+        }
+        .card-header {
+            background-color: #1c2128;
+            border-bottom: 1px solid #30363d;
+            color: #58a6ff;
+        }
+        .table {
+            color: #c9d1d9;
+        }
+        .table thead th {
+            background-color: #1c2128;
+            border-bottom: 2px solid #30363d;
+            color: #8b949e;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .table thead th:hover {
+            color: #58a6ff;
+        }
+        .table tbody tr {
+            border-bottom: 1px solid #21262d;
+            transition: background-color 0.1s;
+        }
+        .table tbody tr:hover {
+            background-color: #1c2128;
+        }
+        .table td {
+            vertical-align: middle;
+            padding: 5px 8px;
+            border-color: #21262d;
+        }
+        .ticker-symbol {
+            color: #58a6ff;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .price-up {
+            color: #3fb950;
+        }
+        .price-down {
+            color: #f85149;
+        }
+        .price-neutral {
+            color: #c9d1d9;
+        }
+        .price-flash-up {
+            animation: flashGreen 0.5s ease-out;
+        }
+        .price-flash-down {
+            animation: flashRed 0.5s ease-out;
+        }
+        @keyframes flashGreen {
+            0% { background-color: rgba(63, 185, 80, 0.4); }
+            100% { background-color: transparent; }
+        }
+        @keyframes flashRed {
+            0% { background-color: rgba(248, 81, 73, 0.4); }
+            100% { background-color: transparent; }
+        }
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-connected { background-color: #3fb950; }
+        .status-disconnected { background-color: #f85149; }
+        .status-connecting { background-color: #d29922; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .sort-icon { font-size: 10px; margin-left: 3px; }
+        #filterBox {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            border-radius: 4px;
+        }
+        #filterBox:focus {
+            border-color: #58a6ff;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+        }
+        .stats-bar {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px 15px;
+            font-size: 12px;
+            color: #8b949e;
+        }
+        .stats-bar span {
+            margin-right: 20px;
+        }
+        .stats-bar .value {
+            color: #58a6ff;
+            font-weight: bold;
+        }
+        .pagination .page-link {
+            background-color: #161b22;
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        .pagination .page-link:hover {
+            background-color: #1c2128;
+            color: #58a6ff;
+        }
+        .pagination .page-item.active .page-link {
+            background-color: #1f6feb;
+            border-color: #1f6feb;
+        }
+        .sort-asc::after { content: ' ▲'; }
+        .sort-desc::after { content: ' ▼'; }
+        .volume-col { color: #8b949e; }
+        .rate-col { color: #d29922; font-size: 11px; }
+        #ticker-count { color: #58a6ff; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg mb-3">
+    <div class="container-fluid">
+        <span class="navbar-brand">&#9654; Market Monitor</span>
+        <div class="d-flex align-items-center gap-3">
+            <span id="status-text" class="small">
+                <span id="status-dot" class="status-indicator status-connecting"></span>
+                <span id="status-label">Connecting...</span>
+            </span>
+            <span class="small text-muted" id="last-update">--</span>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="stats-bar d-flex align-items-center flex-wrap">
+                <span>Tickers: <span class="value" id="ticker-count">0</span></span>
+                <span>Total Trades/s: <span class="value" id="total-trades-ps">0</span></span>
+                <span>Total Quotes/s: <span class="value" id="total-quotes-ps">0</span></span>
+                <span>Messages: <span class="value" id="msg-count">0</span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-2">
+        <div class="col-md-4">
+            <input type="text" id="filterBox" class="form-control form-control-sm"
+                   placeholder="Filter by ticker symbol..." oninput="applyFilter()">
+        </div>
+        <div class="col-md-8 d-flex align-items-center justify-content-end gap-2">
+            <label class="small text-muted">Show:</label>
+            <select id="pageSizeSelect" class="form-select form-select-sm" style="width: auto;"
+                    onchange="changePageSize()">
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="502">All</option>
+            </select>
+            <span class="small text-muted ms-2">per page</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: calc(100vh - 220px); overflow-y: auto;">
+                <table class="table table-sm mb-0" id="market-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortBy('ticker')">Ticker <span class="sort-icon" id="sort-ticker"></span></th>
+                            <th onclick="sortBy('bid')">Bid <span class="sort-icon" id="sort-bid"></span></th>
+                            <th onclick="sortBy('ask')">Ask <span class="sort-icon" id="sort-ask"></span></th>
+                            <th onclick="sortBy('lastTrade')">Last Trade <span class="sort-icon" id="sort-lastTrade"></span></th>
+                            <th onclick="sortBy('price')">Price <span class="sort-icon" id="sort-price"></span></th>
+                            <th onclick="sortBy('change')">Chg% <span class="sort-icon" id="sort-change"></span></th>
+                            <th onclick="sortBy('volume')">Volume <span class="sort-icon" id="sort-volume"></span></th>
+                            <th onclick="sortBy('tradesPerSec')">Trades/s <span class="sort-icon" id="sort-tradesPerSec"></span></th>
+                            <th onclick="sortBy('quotesPerSec')">Quotes/s <span class="sort-icon" id="sort-quotesPerSec"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="market-tbody">
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                Waiting for market data...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-2">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <span class="small text-muted" id="page-info">-</span>
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="pagination"></ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+    let allData = {};
+    let sortColumn = 'tradesPerSec';
+    let sortAsc = false;
+    let filterText = '';
+    let currentPage = 1;
+    let pageSize = 50;
+    let messageCount = 0;
+    let previousPrices = {};
+    let stompClient = null;
+
+    // Track previous row prices for flash animation
+    const rowPreviousPrices = {};
+
+    function connect() {
+        updateStatus('connecting');
+        const socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null; // Suppress debug logs
+
+        stompClient.connect({}, function(frame) {
+            updateStatus('connected');
+            stompClient.subscribe('/topic/monitor', function(message) {
+                try {
+                    const data = JSON.parse(message.body);
+                    handleSnapshot(data);
+                } catch(e) {
+                    console.error('Parse error:', e);
+                }
+            });
+        }, function(error) {
+            updateStatus('disconnected');
+            setTimeout(connect, 3000);
+        });
+    }
+
+    function updateStatus(state) {
+        const dot = document.getElementById('status-dot');
+        const label = document.getElementById('status-label');
+        dot.className = 'status-indicator status-' + state;
+        label.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+    }
+
+    function handleSnapshot(snapshots) {
+        messageCount++;
+        document.getElementById('msg-count').textContent = messageCount;
+        document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+        // Update data map
+        snapshots.forEach(s => {
+            allData[s.ticker] = s;
+        });
+
+        updateStats();
+        renderTable();
+    }
+
+    function updateStats() {
+        const tickers = Object.values(allData);
+        document.getElementById('ticker-count').textContent = tickers.length;
+        const totalTrades = tickers.reduce((sum, t) => sum + (t.tradesPerSec || 0), 0);
+        const totalQuotes = tickers.reduce((sum, t) => sum + (t.quotesPerSec || 0), 0);
+        document.getElementById('total-trades-ps').textContent = totalTrades.toFixed(0);
+        document.getElementById('total-quotes-ps').textContent = totalQuotes.toFixed(0);
+    }
+
+    function sortBy(col) {
+        if (sortColumn === col) {
+            sortAsc = !sortAsc;
+        } else {
+            sortColumn = col;
+            sortAsc = col === 'ticker';
+        }
+        currentPage = 1;
+        renderTable();
+    }
+
+    function applyFilter() {
+        filterText = document.getElementById('filterBox').value.trim().toUpperCase();
+        currentPage = 1;
+        renderTable();
+    }
+
+    function changePageSize() {
+        pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+        currentPage = 1;
+        renderTable();
+    }
+
+    function getFilteredSorted() {
+        let items = Object.values(allData);
+
+        if (filterText) {
+            items = items.filter(t => t.ticker.toUpperCase().includes(filterText));
+        }
+
+        items.sort((a, b) => {
+            let va, vb;
+            if (sortColumn === 'ticker') {
+                va = a.ticker; vb = b.ticker;
+                return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+            } else if (sortColumn === 'change') {
+                va = a.previousPrice > 0 ? (a.price - a.previousPrice) / a.previousPrice * 100 : 0;
+                vb = b.previousPrice > 0 ? (b.price - b.previousPrice) / b.previousPrice * 100 : 0;
+            } else {
+                va = a[sortColumn] || 0;
+                vb = b[sortColumn] || 0;
+            }
+            return sortAsc ? va - vb : vb - va;
+        });
+
+        return items;
+    }
+
+    function renderTable() {
+        const items = getFilteredSorted();
+        const total = items.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        currentPage = Math.min(currentPage, totalPages);
+
+        const start = (currentPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, total);
+        const pageItems = items.slice(start, end);
+
+        const tbody = document.getElementById('market-tbody');
+
+        if (pageItems.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No data matching filter</td></tr>';
+        } else {
+            const rows = pageItems.map(t => {
+                const change = t.previousPrice > 0
+                    ? (t.price - t.previousPrice) / t.previousPrice * 100
+                    : 0;
+                const changeClass = change > 0 ? 'price-up' : change < 0 ? 'price-down' : 'price-neutral';
+                const changeTxt = change > 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+
+                const prevPrice = rowPreviousPrices[t.ticker];
+                let flashClass = '';
+                if (prevPrice !== undefined && t.price !== prevPrice) {
+                    flashClass = t.price > prevPrice ? 'price-flash-up' : 'price-flash-down';
+                }
+                rowPreviousPrices[t.ticker] = t.price;
+
+                return `<tr class="${flashClass}">
+                    <td class="ticker-symbol">${escHtml(t.ticker)}</td>
+                    <td class="price-neutral">${fmt(t.bid)}</td>
+                    <td class="price-neutral">${fmt(t.ask)}</td>
+                    <td class="price-neutral">${fmt(t.lastTrade)}</td>
+                    <td class="${changeClass} fw-bold">${fmt(t.price)}</td>
+                    <td class="${changeClass}">${changeTxt}</td>
+                    <td class="volume-col">${fmtVol(t.volume)}</td>
+                    <td class="rate-col">${t.tradesPerSec.toFixed(1)}</td>
+                    <td class="rate-col">${t.quotesPerSec.toFixed(1)}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = rows.join('');
+        }
+
+        // Update sort icons
+        ['ticker','bid','ask','lastTrade','price','change','volume','tradesPerSec','quotesPerSec'].forEach(col => {
+            const el = document.getElementById('sort-' + col);
+            if (el) {
+                if (sortColumn === col) {
+                    el.textContent = sortAsc ? '▲' : '▼';
+                } else {
+                    el.textContent = '';
+                }
+            }
+        });
+
+        // Pagination
+        document.getElementById('page-info').textContent =
+            `Showing ${start + 1}-${end} of ${total} tickers`;
+
+        renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages) {
+        const ul = document.getElementById('pagination');
+        if (totalPages <= 1) { ul.innerHTML = ''; return; }
+
+        let html = '';
+        // Prev
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goPage(${currentPage - 1}); return false;">&#8249;</a>
+        </li>`;
+
+        // Pages: show window around current
+        const showPages = new Set();
+        showPages.add(1);
+        showPages.add(totalPages);
+        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+            showPages.add(i);
+        }
+        const sortedPages = [...showPages].sort((a, b) => a - b);
+        let prev = 0;
+        sortedPages.forEach(p => {
+            if (prev && p - prev > 1) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            html += `<li class="page-item ${p === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="goPage(${p}); return false;">${p}</a>
+            </li>`;
+            prev = p;
+        });
+
+        // Next
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goPage(${currentPage + 1}); return false;">&#8250;</a>
+        </li>`;
+
+        ul.innerHTML = html;
+    }
+
+    function goPage(p) {
+        currentPage = p;
+        renderTable();
+    }
+
+    function fmt(val) {
+        if (!val || val === 0) return '-';
+        return val.toFixed(2);
+    }
+
+    function fmtVol(val) {
+        if (!val || val === 0) return '-';
+        if (val >= 1e9) return (val / 1e9).toFixed(2) + 'B';
+        if (val >= 1e6) return (val / 1e6).toFixed(2) + 'M';
+        if (val >= 1e3) return (val / 1e3).toFixed(1) + 'K';
+        return val.toString();
+    }
+
+    function escHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Connect on page load
+    connect();
+</script>
+</body>
+</html>

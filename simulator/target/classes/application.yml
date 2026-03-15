@@ -1,0 +1,25 @@
+simulator:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+    trades-topic: trades
+    quotes-topic: quotes
+  data:
+    sp500-csv: ${DATA_PATH:/data}/sp500.csv
+    market-data-csv: ${DATA_PATH:/data}/market_data.csv
+  num-partitions: 10
+  trading-seconds-per-day: 23400  # 6.5 hours
+  default-volatility: 0.002
+  batch-size: 500
+  linger-ms: 5
+
+spring:
+  kafka:
+    producer:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+      batch-size: 16384
+      linger-ms: 5
+      acks: 1

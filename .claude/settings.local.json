@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Write(*)",
+      "Bash(ls:*)",
+      "Bash(git:*)",
+      "Bash(mvn validate:*)",
+      "Bash(mvn compile:*)"
+    ]
+  }
+}

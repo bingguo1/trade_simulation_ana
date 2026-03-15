@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bars Chart - Live OHLCV</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .navbar {
+            background-color: #161b22 !important;
+            border-bottom: 1px solid #30363d;
+        }
+        .navbar-brand {
+            color: #58a6ff !important;
+            font-weight: bold;
+        }
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+        }
+        .card-header {
+            background-color: #1c2128;
+            border-bottom: 1px solid #30363d;
+            color: #58a6ff;
+        }
+        #chart-container {
+            position: relative;
+            height: 420px;
+            background-color: #0d1117;
+        }
+        #volume-container {
+            position: relative;
+            height: 120px;
+            background-color: #0d1117;
+        }
+        .ticker-selector {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            border-radius: 4px;
+            padding: 4px 8px;
+        }
+        .ticker-selector:focus {
+            border-color: #58a6ff;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-connected { background-color: #3fb950; }
+        .status-disconnected { background-color: #f85149; }
+        .status-connecting { background-color: #d29922; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .ohlcv-info {
+            font-size: 12px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .ohlcv-info span { white-space: nowrap; }
+        .ohlcv-open { color: #c9d1d9; }
+        .ohlcv-high { color: #3fb950; }
+        .ohlcv-low { color: #f85149; }
+        .ohlcv-close { color: #58a6ff; font-weight: bold; }
+        .ohlcv-vol { color: #8b949e; }
+
+        .table { color: #c9d1d9; font-size: 12px; }
+        .table thead th {
+            background-color: #1c2128;
+            border-color: #30363d;
+            color: #8b949e;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .table td { border-color: #21262d; vertical-align: middle; }
+        .price-up { color: #3fb950; }
+        .price-down { color: #f85149; }
+        .price-neutral { color: #c9d1d9; }
+
+        #ticker-search {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+        }
+        #ticker-search:focus {
+            border-color: #58a6ff;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+        }
+        .bar-count-badge {
+            background-color: #1f6feb;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg mb-3">
+    <div class="container-fluid">
+        <span class="navbar-brand">&#9654; OHLCV Bars Chart</span>
+        <div class="d-flex align-items-center gap-3">
+            <span class="small">
+                <span id="status-dot" class="status-dot status-connecting"></span>
+                <span id="status-label" class="ms-1">Connecting...</span>
+            </span>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <!-- Ticker Selector -->
+    <div class="row mb-2">
+        <div class="col-md-6 d-flex align-items-center gap-2">
+            <label class="text-muted small">Ticker:</label>
+            <input type="text" id="ticker-search" class="form-control form-control-sm"
+                   style="width: 120px;" placeholder="e.g. AAPL"
+                   oninput="onTickerInput(this.value)">
+            <select id="ticker-select" class="ticker-selector form-select form-select-sm"
+                    style="width: 160px;" onchange="selectTicker(this.value)">
+                <option value="">-- Select Ticker --</option>
+            </select>
+            <button class="btn btn-sm btn-outline-primary" onclick="loadTicker()">Load</button>
+            <span class="bar-count-badge" id="bar-count">0 bars</span>
+        </div>
+        <div class="col-md-6 d-flex align-items-center justify-content-end">
+            <div class="ohlcv-info" id="ohlcv-info">
+                <span class="text-muted">Select a ticker to view candlestick chart</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Candlestick Chart -->
+    <div class="card mb-2">
+        <div class="card-header d-flex justify-content-between align-items-center py-1">
+            <span id="chart-title">Candlestick Chart</span>
+            <small class="text-muted" id="chart-subtitle">1-second bars</small>
+        </div>
+        <div class="card-body p-0">
+            <div id="chart-container"></div>
+        </div>
+    </div>
+
+    <!-- Volume Chart -->
+    <div class="card mb-2">
+        <div class="card-header py-1">
+            <span class="small">Volume</span>
+        </div>
+        <div class="card-body p-0">
+            <div id="volume-container"></div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="card">
+        <div class="card-header py-1 d-flex justify-content-between">
+            <span>Recent Bars</span>
+            <span class="small text-muted">Last 20 completed bars</span>
+        </div>
+        <div class="card-body p-0">
+            <div style="max-height: 200px; overflow-y: auto;">
+                <table class="table table-sm mb-0" id="bars-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Open</th>
+                            <th>High</th>
+                            <th>Low</th>
+                            <th>Close</th>
+                            <th>Volume</th>
+                            <th>Trades</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bars-tbody">
+                        <tr><td colspan="7" class="text-center text-muted">No data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+    let stompClient = null;
+    let selectedTicker = '';
+    let candleSeries = null;
+    let volumeSeries = null;
+    let candleChart = null;
+    let volumeChart = null;
+
+    // Bar data storage: Map<string (time as string), bar>
+    const barsMap = new Map();  // key: barSecond (number), value: bar
+    const allTickers = new Set();
+
+    function initCharts() {
+        // Candlestick chart
+        candleChart = LightweightCharts.createChart(document.getElementById('chart-container'), {
+            layout: {
+                background: { color: '#0d1117' },
+                textColor: '#8b949e',
+            },
+            grid: {
+                vertLines: { color: '#21262d' },
+                horzLines: { color: '#21262d' },
+            },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+            },
+            rightPriceScale: {
+                borderColor: '#30363d',
+            },
+            timeScale: {
+                borderColor: '#30363d',
+                timeVisible: true,
+                secondsVisible: true,
+            },
+            width: document.getElementById('chart-container').clientWidth,
+            height: 420,
+        });
+
+        candleSeries = candleChart.addCandlestickSeries({
+            upColor: '#3fb950',
+            downColor: '#f85149',
+            borderUpColor: '#3fb950',
+            borderDownColor: '#f85149',
+            wickUpColor: '#3fb950',
+            wickDownColor: '#f85149',
+        });
+
+        // Volume chart
+        volumeChart = LightweightCharts.createChart(document.getElementById('volume-container'), {
+            layout: {
+                background: { color: '#0d1117' },
+                textColor: '#8b949e',
+            },
+            grid: {
+                vertLines: { color: '#21262d' },
+                horzLines: { color: '#21262d' },
+            },
+            rightPriceScale: {
+                borderColor: '#30363d',
+                scaleMargins: { top: 0.1, bottom: 0 },
+            },
+            timeScale: {
+                borderColor: '#30363d',
+                timeVisible: true,
+                secondsVisible: true,
+            },
+            width: document.getElementById('volume-container').clientWidth,
+            height: 120,
+        });
+
+        volumeSeries = volumeChart.addHistogramSeries({
+            color: '#1f6feb',
+            priceFormat: { type: 'volume' },
+            priceScaleId: '',
+        });
+
+        // Sync time scales
+        candleChart.timeScale().subscribeVisibleTimeRangeChange(() => {
+            const range = candleChart.timeScale().getVisibleRange();
+            if (range) volumeChart.timeScale().setVisibleRange(range);
+        });
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            const w1 = document.getElementById('chart-container').clientWidth;
+            const w2 = document.getElementById('volume-container').clientWidth;
+            candleChart.resize(w1, 420);
+            volumeChart.resize(w2, 120);
+        });
+
+        // Crosshair sync - show OHLCV info
+        candleChart.subscribeCrosshairMove(param => {
+            if (param.time && candleSeries) {
+                const data = param.seriesData.get(candleSeries);
+                if (data) {
+                    updateOHLCVInfo(data);
+                }
+            }
+        });
+    }
+
+    function updateOHLCVInfo(bar) {
+        const changeAmt = bar.close - bar.open;
+        const changePct = bar.open > 0 ? (changeAmt / bar.open * 100) : 0;
+        const changeClass = changeAmt >= 0 ? 'price-up' : 'price-down';
+        const changeTxt = (changeAmt >= 0 ? '+' : '') + changeAmt.toFixed(2) +
+                          ' (' + changePct.toFixed(2) + '%)';
+
+        document.getElementById('ohlcv-info').innerHTML = `
+            <span class="ohlcv-open">O: ${bar.open.toFixed(2)}</span>
+            <span class="ohlcv-high">H: ${bar.high.toFixed(2)}</span>
+            <span class="ohlcv-low">L: ${bar.low.toFixed(2)}</span>
+            <span class="ohlcv-close">C: ${bar.close.toFixed(2)}</span>
+            <span class="${changeClass}">${changeTxt}</span>
+        `;
+    }
+
+    function connect() {
+        updateStatus('connecting');
+        const socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect({}, function(frame) {
+            updateStatus('connected');
+
+            // Subscribe to completed bars
+            stompClient.subscribe('/topic/bars', function(msg) {
+                try {
+                    const bar = JSON.parse(msg.body);
+                    handleBar(bar);
+                } catch(e) { console.error('bars parse error:', e); }
+            });
+
+            // Subscribe to live (in-progress) bars
+            stompClient.subscribe('/topic/bars/live', function(msg) {
+                try {
+                    const bar = JSON.parse(msg.body);
+                    handleLiveBar(bar);
+                } catch(e) { console.error('live bars parse error:', e); }
+            });
+
+            // Subscribe to history responses
+            stompClient.subscribe('/topic/bars/history', function(msg) {
+                try {
+                    const data = JSON.parse(msg.body);
+                    if (data.ticker === selectedTicker) {
+                        loadHistory(data);
+                    }
+                } catch(e) { console.error('history parse error:', e); }
+            });
+
+            // Load initial ticker list
+            fetchTickers();
+
+        }, function(error) {
+            updateStatus('disconnected');
+            setTimeout(connect, 3000);
+        });
+    }
+
+    function fetchTickers() {
+        fetch('/api/tickers')
+            .then(r => r.json())
+            .then(tickers => {
+                tickers.forEach(t => allTickers.add(t));
+                updateTickerSelect();
+            })
+            .catch(e => console.log('Ticker fetch error:', e));
+    }
+
+    function updateTickerSelect() {
+        const sel = document.getElementById('ticker-select');
+        const sorted = [...allTickers].sort();
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="">-- Select Ticker --</option>';
+        sorted.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            if (t === currentVal) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    }
+
+    function handleBar(bar) {
+        // Track all tickers
+        if (!allTickers.has(bar.ticker)) {
+            allTickers.add(bar.ticker);
+            updateTickerSelect();
+        }
+
+        if (bar.ticker !== selectedTicker) return;
+
+        // Completed bar - store and update chart
+        barsMap.set(bar.time, {
+            time: bar.time,
+            open: bar.open,
+            high: bar.high,
+            low: bar.low,
+            close: bar.close,
+            volume: bar.volume,
+            tradeCount: bar.tradeCount
+        });
+
+        updateChart();
+        updateTable();
+    }
+
+    function handleLiveBar(bar) {
+        if (bar.ticker !== selectedTicker) return;
+
+        // Update current bar (overwrites any existing entry for this second)
+        barsMap.set(bar.time, {
+            time: bar.time,
+            open: bar.open,
+            high: bar.high,
+            low: bar.low,
+            close: bar.close,
+            volume: bar.volume,
+            tradeCount: bar.tradeCount,
+            isLive: true
+        });
+
+        updateChart();
+    }
+
+    function updateChart() {
+        if (!candleSeries || !volumeSeries) return;
+
+        const sorted = [...barsMap.values()]
+            .sort((a, b) => a.time - b.time)
+            .slice(-200); // Keep last 200 bars
+
+        const candles = sorted.map(b => ({
+            time: b.time,
+            open: b.open,
+            high: b.high,
+            low: b.low,
+            close: b.close
+        }));
+
+        const volumes = sorted.map(b => ({
+            time: b.time,
+            value: b.volume,
+            color: b.close >= b.open ? 'rgba(63, 185, 80, 0.5)' : 'rgba(248, 81, 73, 0.5)'
+        }));
+
+        try {
+            candleSeries.setData(candles);
+            volumeSeries.setData(volumes);
+        } catch(e) {
+            // ignore chart errors
+        }
+
+        document.getElementById('bar-count').textContent = sorted.length + ' bars';
+
+        // Update OHLCV info with latest bar
+        if (sorted.length > 0) {
+            const latest = sorted[sorted.length - 1];
+            updateOHLCVInfo(latest);
+        }
+    }
+
+    function updateTable() {
+        const sorted = [...barsMap.values()]
+            .filter(b => !b.isLive)
+            .sort((a, b) => b.time - a.time)  // newest first
+            .slice(0, 20);
+
+        if (sorted.length === 0) {
+            document.getElementById('bars-tbody').innerHTML =
+                '<tr><td colspan="7" class="text-center text-muted">No completed bars</td></tr>';
+            return;
+        }
+
+        const rows = sorted.map(b => {
+            const changeClass = b.close >= b.open ? 'price-up' : 'price-down';
+            const dt = new Date(b.time * 1000);
+            const timeStr = dt.toLocaleTimeString();
+            return `<tr>
+                <td>${timeStr}</td>
+                <td>${b.open.toFixed(2)}</td>
+                <td class="price-up">${b.high.toFixed(2)}</td>
+                <td class="price-down">${b.low.toFixed(2)}</td>
+                <td class="${changeClass} fw-bold">${b.close.toFixed(2)}</td>
+                <td class="text-muted">${fmtVol(b.volume)}</td>
+                <td class="text-muted">${b.tradeCount}</td>
+            </tr>`;
+        });
+
+        document.getElementById('bars-tbody').innerHTML = rows.join('');
+    }
+
+    function loadHistory(data) {
+        barsMap.clear();
+        if (data.bars) {
+            data.bars.forEach(b => barsMap.set(b.time, {
+                time: b.time, open: b.open, high: b.high, low: b.low,
+                close: b.close, volume: b.volume, tradeCount: b.tradeCount
+            }));
+        }
+        if (data.current) {
+            barsMap.set(data.current.time, { ...data.current, isLive: true });
+        }
+        updateChart();
+        updateTable();
+    }
+
+    function onTickerInput(val) {
+        const upper = val.toUpperCase();
+        document.getElementById('ticker-search').value = upper;
+        // Auto-select in dropdown if exact match
+        const sel = document.getElementById('ticker-select');
+        if ([...allTickers].includes(upper)) {
+            sel.value = upper;
+        }
+    }
+
+    function selectTicker(val) {
+        document.getElementById('ticker-search').value = val;
+        selectedTicker = val;
+    }
+
+    function loadTicker() {
+        const input = document.getElementById('ticker-search').value.trim().toUpperCase();
+        const select = document.getElementById('ticker-select').value;
+        const ticker = input || select;
+
+        if (!ticker) {
+            alert('Please select or type a ticker symbol');
+            return;
+        }
+
+        selectedTicker = ticker;
+        barsMap.clear();
+
+        document.getElementById('chart-title').textContent = ticker + ' - 1 Second Bars';
+        document.getElementById('ohlcv-info').innerHTML = '<span class="text-muted">Loading...</span>';
+
+        // Request history via REST (more reliable than WebSocket for initial load)
+        fetch(`/api/bars?ticker=${encodeURIComponent(ticker)}&limit=100`)
+            .then(r => r.json())
+            .then(data => {
+                loadHistory(data);
+                if (barsMap.size === 0) {
+                    document.getElementById('ohlcv-info').innerHTML =
+                        '<span class="text-muted">No bars yet for ' + ticker + '. Waiting for trades...</span>';
+                }
+            })
+            .catch(e => {
+                console.error('Error loading bars:', e);
+                document.getElementById('ohlcv-info').innerHTML =
+                    '<span class="text-warning">Error loading data</span>';
+            });
+
+        // Also refresh tickers list
+        fetchTickers();
+    }
+
+    function updateStatus(state) {
+        const dot = document.getElementById('status-dot');
+        const label = document.getElementById('status-label');
+        dot.className = 'status-dot status-' + state;
+        label.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+    }
+
+    function fmtVol(val) {
+        if (!val) return '0';
+        if (val >= 1e6) return (val / 1e6).toFixed(2) + 'M';
+        if (val >= 1e3) return (val / 1e3).toFixed(1) + 'K';
+        return val.toString();
+    }
+
+    // Initialize
+    initCharts();
+    connect();
+
+    // Periodically refresh ticker list
+    setInterval(fetchTickers, 10000);
+</script>
+</body>
+</html>
