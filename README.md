@@ -491,11 +491,16 @@ docker compose logs kafka-setup
 # Build all modules
 mvn clean package -DskipTests
 
+# Module directories include .mvn/maven.config so mvn commands there
+# still run through the root reactor and build sibling module dependencies.
+
 # Run simulator (in separate terminal)
 cd simulator
 DATA_PATH=../data \
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092,localhost:9093,localhost:9094 \
 mvn spring-boot:run
+
+# sp500.csv is auto-discovered from the repo root for local runs.
 
 # Run consumer-monitor (in separate terminal)
 cd consumer-monitor
@@ -672,7 +677,7 @@ To scale to 5 brokers, add to `docker-compose.yml`:
 
 ```yaml
 kafka4:
-  image: bitnami/kafka:3.7
+  image: bitnamilegacy/kafka:3.7.0
   environment:
     KAFKA_CFG_NODE_ID: "4"
     KAFKA_CFG_PROCESS_ROLES: broker,controller

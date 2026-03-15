@@ -10,6 +10,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 
 @Component
@@ -71,7 +72,7 @@ public class MarketDataLoader {
 
     private Map<String, double[]> loadSp500() {
         Map<String, double[]> result = new LinkedHashMap<>();
-        String csvPath = props.getData().getSp500Csv();
+        String csvPath = resolveSp500CsvPath();
 
         try (BufferedReader br = new BufferedReader(new FileReader(csvPath))) {
             String line = br.readLine(); // skip header
@@ -110,6 +111,30 @@ public class MarketDataLoader {
         }
 
         return result;
+    }
+
+    private String resolveSp500CsvPath() {
+        String configuredPath = props.getData().getSp500Csv();
+        Path configured = Path.of(configuredPath);
+        if (configured.toFile().exists()) {
+            return configuredPath;
+        }
+
+        List<Path> fallbackPaths = List.of(
+                Path.of("sp500.csv"),
+                Path.of("..", "sp500.csv"),
+                Path.of("data", "sp500.csv"),
+                Path.of("..", "data", "sp500.csv")
+        );
+
+        for (Path fallbackPath : fallbackPaths) {
+            if (fallbackPath.toFile().exists()) {
+                log.warn("sp500.csv not found at {}, using {} instead", configuredPath, fallbackPath);
+                return fallbackPath.toString();
+            }
+        }
+
+        return configuredPath;
     }
 
     private Map<String, double[]> loadMarketData() {
