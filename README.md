@@ -500,6 +500,10 @@ DATA_PATH=../data \
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092,localhost:9093,localhost:9094 \
 mvn spring-boot:run
 
+# Kafka uses dual listeners:
+# - local host apps use localhost:9092,9093,9094
+# - Docker services use kafka1:9092,kafka2:9092,kafka3:9092
+
 # sp500.csv is auto-discovered from the repo root for local runs.
 
 # Run consumer-monitor (in separate terminal)
@@ -604,7 +608,7 @@ simulator:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092,...` | Kafka broker list |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092,...` | Kafka broker list for host-run apps (Docker services should use `kafka1:9092,kafka2:9092,kafka3:9092`) |
 | `DATA_PATH` | `/data` | Directory containing CSV files (simulator only) |
 | `DATABASE_URL` | `jdbc:postgresql://localhost:5432/tickdata` | PostgreSQL JDBC URL (writer only) |
 | `DB_USER` | `tickuser` | PostgreSQL username (writer only) |
@@ -639,6 +643,18 @@ Cluster ID:        MkU3OEVBNTcwNTJENDM2Qk  (fixed, base64 URL-safe)
 ```
 
 The cluster ID must be identical across all brokers and must be a 22-character base64 URL-safe string. This is set via `KAFKA_KRAFT_CLUSTER_ID` in docker-compose.
+
+### Broker Listener Modes (Dual Listener)
+
+Kafka brokers are configured with two client listeners:
+
+- `INTERNAL://kafkaN:9092` for containers on the Docker network
+- `EXTERNAL://localhost:9092|9093|9094` for apps running on the host machine
+
+Use bootstrap servers based on where the client runs:
+
+- Host process (for example `mvn spring-boot:run` from module directories): `localhost:9092,localhost:9093,localhost:9094`
+- Docker service (in `docker-compose.yml`): `kafka1:9092,kafka2:9092,kafka3:9092`
 
 ### Manual Topic Management
 

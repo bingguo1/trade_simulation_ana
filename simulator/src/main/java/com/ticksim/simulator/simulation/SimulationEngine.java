@@ -30,6 +30,7 @@ public class SimulationEngine {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final List<Thread> simulatorThreads = new ArrayList<>();
+    private Thread keepAliveThread;
 
     public SimulationEngine(MarketDataLoader marketDataLoader,
                             TickerPartitionMapper partitionMapper,
@@ -63,6 +64,21 @@ public class SimulationEngine {
             simulatorThreads.add(thread);
         }
 
+        keepAliveThread = Thread.ofPlatform()
+                .name("simulator-keepalive")
+                .start(() -> {
+                    while (running.get()) {
+                        try {
+                            Thread.sleep(Long.MAX_VALUE);
+                        } catch (InterruptedException e) {
+                            if (!running.get()) {
+                                Thread.currentThread().interrupt();
+                                break;
+                            }
+                        }
+                    }
+                });
+
         log.info("Started {} virtual thread simulators", simulatorThreads.size());
     }
 
@@ -82,6 +98,16 @@ public class SimulationEngine {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+        }
+
+        if (keepAliveThread != null) {
+            keepAliveThread.interrupt();
+            try {
+                keepAliveThread.join(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            keepAliveThread = null;
         }
 
         simulatorThreads.clear();

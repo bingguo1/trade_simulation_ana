@@ -89,6 +89,9 @@ public class TickerSimulator implements Runnable {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
+                if (!running.get() || isExpectedShutdownException(e)) {
+                    break;
+                }
                 log.error("Error in simulator for {}: {}", info.getTicker(), e.getMessage());
                 // Small backoff on error to avoid tight loop
                 try {
@@ -155,6 +158,21 @@ public class TickerSimulator implements Runnable {
                 event
         );
         kafkaTemplate.send(record);
+    }
+
+    private boolean isExpectedShutdownException(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof InterruptedException || current instanceof IllegalStateException) {
+                return true;
+            }
+            String message = current.getMessage();
+            if (message != null && message.contains("Producer closed")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**

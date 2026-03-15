@@ -32,6 +32,7 @@ public class MarketDataLoader {
     public List<TickerInfo> loadTickers() {
         // Load base data from sp500.csv
         Map<String, double[]> sp500Data = loadSp500();  // ticker -> [price, weightPct]
+        sp500Data = applyTickerFilters(sp500Data);
 
         // Load optional market data (volume, daily return)
         Map<String, double[]> marketData = loadMarketData(); // ticker -> [avgVolume, avgReturn]
@@ -68,6 +69,65 @@ public class MarketDataLoader {
 
         log.info("Loaded {} tickers from sp500.csv", tickers.size());
         return tickers;
+    }
+
+    private Map<String, double[]> applyTickerFilters(Map<String, double[]> sp500Data) {
+        Map<String, double[]> filtered = sp500Data;
+
+        Set<String> configuredTickers = configuredTickers();
+        if (!configuredTickers.isEmpty()) {
+            filtered = new LinkedHashMap<>();
+            for (Map.Entry<String, double[]> entry : sp500Data.entrySet()) {
+                if (configuredTickers.contains(entry.getKey())) {
+                    filtered.put(entry.getKey(), entry.getValue());
+                }
+            }
+            log.info("Applied explicit ticker filter: {} configured, {} matched", configuredTickers.size(), filtered.size());
+        }
+
+        int maxTickers = props.getMaxTickers();
+        if (maxTickers > 0 && filtered.size() > maxTickers) {
+            Map<String, double[]> capped = new LinkedHashMap<>();
+            int count = 0;
+            for (Map.Entry<String, double[]> entry : filtered.entrySet()) {
+                capped.put(entry.getKey(), entry.getValue());
+                count++;
+                if (count >= maxTickers) {
+                    break;
+                }
+            }
+            filtered = capped;
+            log.info("Applied max-tickers cap: {}", maxTickers);
+        }
+
+        return filtered;
+    }
+
+    private Set<String> configuredTickers() {
+        Set<String> configured = new LinkedHashSet<>();
+        if (props.getTickers() == null) {
+            return configured;
+        }
+
+        for (String rawTicker : props.getTickers()) {
+            if (rawTicker == null) {
+                continue;
+            }
+
+            String trimmed = rawTicker.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+
+            for (String token : trimmed.split(",")) {
+                String ticker = token.trim().toUpperCase(Locale.ROOT);
+                if (!ticker.isEmpty()) {
+                    configured.add(ticker);
+                }
+            }
+        }
+
+        return configured;
     }
 
     private Map<String, double[]> loadSp500() {

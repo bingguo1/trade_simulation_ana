@@ -3,6 +3,9 @@ package com.ticksim.simulator.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Component
 @ConfigurationProperties(prefix = "simulator")
 public class SimulatorProperties {
@@ -14,6 +17,8 @@ public class SimulatorProperties {
     private double defaultVolatility = 0.002;
     private int batchSize = 500;
     private int lingerMs = 5;
+    private List<String> tickers = new ArrayList<>();
+    private int maxTickers = 0;
 
     public Kafka getKafka() { return kafka; }
     public void setKafka(Kafka kafka) { this.kafka = kafka; }
@@ -35,6 +40,12 @@ public class SimulatorProperties {
 
     public int getLingerMs() { return lingerMs; }
     public void setLingerMs(int lingerMs) { this.lingerMs = lingerMs; }
+
+    public List<String> getTickers() { return tickers; }
+    public void setTickers(List<String> tickers) { this.tickers = tickers; }
+
+    public int getMaxTickers() { return maxTickers; }
+    public void setMaxTickers(int maxTickers) { this.maxTickers = maxTickers; }
 
     public static class Kafka {
         private String bootstrapServers = "localhost:9092";

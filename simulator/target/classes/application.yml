@@ -7,6 +7,8 @@ simulator:
     sp500-csv: ${DATA_PATH:/data}/sp500.csv
     market-data-csv: ${DATA_PATH:/data}/market_data.csv
   num-partitions: 10
+  tickers: ${SIM_TICKERS:}
+  max-tickers: ${SIM_MAX_TICKERS:0}
   trading-seconds-per-day: 23400  # 6.5 hours
   default-volatility: 0.002
   batch-size: 500
