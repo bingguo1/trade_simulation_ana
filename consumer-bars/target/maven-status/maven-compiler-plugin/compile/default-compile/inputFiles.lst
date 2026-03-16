@@ -1,7 +1,0 @@
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-bars/src/main/java/com/ticksim/bars/BarsApplication.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-bars/src/main/java/com/ticksim/bars/aggregator/BarAggregator.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-bars/src/main/java/com/ticksim/bars/config/KafkaConsumerConfig.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-bars/src/main/java/com/ticksim/bars/config/WebSocketConfig.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-bars/src/main/java/com/ticksim/bars/consumer/BarsConsumer.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-bars/src/main/java/com/ticksim/bars/model/OHLCVBar.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-bars/src/main/java/com/ticksim/bars/websocket/BarsController.java

@@ -1,4 +1,0 @@
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-writer/src/main/java/com/ticksim/writer/WriterApplication.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-writer/src/main/java/com/ticksim/writer/config/KafkaConsumerConfig.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-writer/src/main/java/com/ticksim/writer/consumer/WriterConsumer.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-writer/src/main/java/com/ticksim/writer/repository/MarketDataRepository.java

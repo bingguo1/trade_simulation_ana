@@ -1,4 +1,0 @@
-com/ticksim/writer/WriterApplication.class
-com/ticksim/writer/repository/MarketDataRepository.class
-com/ticksim/writer/config/KafkaConsumerConfig.class
-com/ticksim/writer/consumer/WriterConsumer.class

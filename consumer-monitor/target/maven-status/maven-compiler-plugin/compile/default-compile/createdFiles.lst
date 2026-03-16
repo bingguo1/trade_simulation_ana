@@ -1,8 +1,0 @@
-com/ticksim/monitor/store/MarketDataStore.class
-com/ticksim/monitor/websocket/MonitorController.class
-com/ticksim/monitor/MonitorApplication.class
-com/ticksim/monitor/model/TickerState.class
-com/ticksim/monitor/config/KafkaConsumerConfig.class
-com/ticksim/monitor/model/TickerState$TickerSnapshot.class
-com/ticksim/monitor/consumer/MarketDataConsumer.class
-com/ticksim/monitor/config/WebSocketConfig.class

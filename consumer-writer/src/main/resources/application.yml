@@ -23,4 +23,4 @@ spring:
         spring.json.trusted.packages: "com.ticksim.common.model"
         spring.json.value.default.type: ""
     listener:
-      concurrency: 1
+      concurrency: 3

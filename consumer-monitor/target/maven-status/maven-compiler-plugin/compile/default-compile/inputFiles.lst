@@ -1,7 +1,0 @@
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-monitor/src/main/java/com/ticksim/monitor/MonitorApplication.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-monitor/src/main/java/com/ticksim/monitor/config/KafkaConsumerConfig.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-monitor/src/main/java/com/ticksim/monitor/config/WebSocketConfig.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-monitor/src/main/java/com/ticksim/monitor/consumer/MarketDataConsumer.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-monitor/src/main/java/com/ticksim/monitor/model/TickerState.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-monitor/src/main/java/com/ticksim/monitor/store/MarketDataStore.java
-/home/bguo/work_learn_za/quant/kafka_tick_simulation/consumer-monitor/src/main/java/com/ticksim/monitor/websocket/MonitorController.java
