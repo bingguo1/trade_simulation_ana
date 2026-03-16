@@ -196,7 +196,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <script>
     let stompClient = null;
     let selectedTicker = '';
@@ -230,6 +230,7 @@
                 borderColor: '#30363d',
                 timeVisible: true,
                 secondsVisible: true,
+                timezone: 'UTC',
             },
             width: document.getElementById('chart-container').clientWidth,
             height: 420,
@@ -262,6 +263,7 @@
                 borderColor: '#30363d',
                 timeVisible: true,
                 secondsVisible: true,
+                timezone: 'UTC',
             },
             width: document.getElementById('volume-container').clientWidth,
             height: 120,
@@ -270,13 +272,12 @@
         volumeSeries = volumeChart.addHistogramSeries({
             color: '#1f6feb',
             priceFormat: { type: 'volume' },
-            priceScaleId: '',
+            priceScaleId: 'right',
         });
 
         // Sync time scales
-        candleChart.timeScale().subscribeVisibleTimeRangeChange(() => {
-            const range = candleChart.timeScale().getVisibleRange();
-            if (range) volumeChart.timeScale().setVisibleRange(range);
+        candleChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+            if (range) volumeChart.timeScale().setVisibleLogicalRange(range);
         });
 
         // Handle resize
@@ -448,8 +449,13 @@
         try {
             candleSeries.setData(candles);
             volumeSeries.setData(volumes);
+            candleChart.timeScale().fitContent();
+            volumeChart.timeScale().fitContent();
+            // Sync logical range after fit so both charts show same window
+            const lr = candleChart.timeScale().getVisibleLogicalRange();
+            if (lr) volumeChart.timeScale().setVisibleLogicalRange(lr);
         } catch(e) {
-            // ignore chart errors
+            console.warn('chart setData error:', e);
         }
 
         document.getElementById('bar-count').textContent = sorted.length + ' bars';
@@ -574,6 +580,7 @@
     // Initialize
     initCharts();
     connect();
+    fetchTickers();  // load dropdown immediately, don't wait for WebSocket
 
     // Periodically refresh ticker list
     setInterval(fetchTickers, 10000);

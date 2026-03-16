@@ -12,7 +12,10 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -53,10 +56,27 @@ public class SimulationEngine {
 
         String tradesTopic = props.getKafka().getTradesTopic();
         String quotesTopic = props.getKafka().getQuotesTopic();
+        boolean heartbeatEnabled = props.getHeartbeat().isEnabled();
+        long heartbeatIntervalMs = Math.max(1000, props.getHeartbeat().getIntervalMs());
+        Set<String> heartbeatTickers = configuredHeartbeatTickers();
+
+        if (!heartbeatTickers.isEmpty()) {
+            log.info("Heartbeat filter enabled for {} tickers", heartbeatTickers.size());
+        }
 
         for (TickerInfo ticker : assignedTickers) {
+            boolean heartbeatForTicker = heartbeatTickers.isEmpty()
+                || heartbeatTickers.contains(ticker.getTicker().toUpperCase(Locale.ROOT));
+
             TickerSimulator simulator = new TickerSimulator(
-                    ticker, kafkaTemplate, tradesTopic, quotesTopic, running
+                ticker,
+                kafkaTemplate,
+                tradesTopic,
+                quotesTopic,
+                running,
+                heartbeatEnabled,
+                heartbeatIntervalMs,
+                heartbeatForTicker
             );
             Thread thread = Thread.ofVirtual()
                     .name("sim-" + ticker.getTicker())
@@ -112,5 +132,33 @@ public class SimulationEngine {
 
         simulatorThreads.clear();
         log.info("SimulationEngine stopped.");
+    }
+
+    private Set<String> configuredHeartbeatTickers() {
+        Set<String> configured = new LinkedHashSet<>();
+        List<String> rawTickers = props.getHeartbeat().getTickers();
+        if (rawTickers == null) {
+            return configured;
+        }
+
+        for (String rawTicker : rawTickers) {
+            if (rawTicker == null) {
+                continue;
+            }
+
+            String trimmed = rawTicker.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+
+            for (String token : trimmed.split(",")) {
+                String ticker = token.trim().toUpperCase(Locale.ROOT);
+                if (!ticker.isEmpty()) {
+                    configured.add(ticker);
+                }
+            }
+        }
+
+        return configured;
     }
 }

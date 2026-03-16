@@ -19,6 +19,7 @@ public class SimulatorProperties {
     private int lingerMs = 5;
     private List<String> tickers = new ArrayList<>();
     private int maxTickers = 0;
+    private Heartbeat heartbeat = new Heartbeat();
 
     public Kafka getKafka() { return kafka; }
     public void setKafka(Kafka kafka) { this.kafka = kafka; }
@@ -47,6 +48,9 @@ public class SimulatorProperties {
     public int getMaxTickers() { return maxTickers; }
     public void setMaxTickers(int maxTickers) { this.maxTickers = maxTickers; }
 
+    public Heartbeat getHeartbeat() { return heartbeat; }
+    public void setHeartbeat(Heartbeat heartbeat) { this.heartbeat = heartbeat; }
+
     public static class Kafka {
         private String bootstrapServers = "localhost:9092";
         private String tradesTopic = "trades";
@@ -71,5 +75,20 @@ public class SimulatorProperties {
 
         public String getMarketDataCsv() { return marketDataCsv; }
         public void setMarketDataCsv(String marketDataCsv) { this.marketDataCsv = marketDataCsv; }
+    }
+
+    public static class Heartbeat {
+        private boolean enabled = true;
+        private long intervalMs = 5000;
+        private List<String> tickers = new ArrayList<>();
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+        public long getIntervalMs() { return intervalMs; }
+        public void setIntervalMs(long intervalMs) { this.intervalMs = intervalMs; }
+
+        public List<String> getTickers() { return tickers; }
+        public void setTickers(List<String> tickers) { this.tickers = tickers; }
     }
 }

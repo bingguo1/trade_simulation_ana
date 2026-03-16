@@ -25,6 +25,9 @@ public class TickerSimulator implements Runnable {
     private final String tradesTopic;
     private final String quotesTopic;
     private final AtomicBoolean running;
+    private final boolean heartbeatEnabled;
+    private final long heartbeatIntervalMs;
+    private final boolean heartbeatForTicker;
     private final Random random;
 
     // Current price state
@@ -34,12 +37,18 @@ public class TickerSimulator implements Runnable {
                            KafkaTemplate<String, Object> kafkaTemplate,
                            String tradesTopic,
                            String quotesTopic,
-                           AtomicBoolean running) {
+                           AtomicBoolean running,
+                           boolean heartbeatEnabled,
+                           long heartbeatIntervalMs,
+                           boolean heartbeatForTicker) {
         this.info = info;
         this.kafkaTemplate = kafkaTemplate;
         this.tradesTopic = tradesTopic;
         this.quotesTopic = quotesTopic;
         this.running = running;
+        this.heartbeatEnabled = heartbeatEnabled;
+        this.heartbeatIntervalMs = Math.max(1000, heartbeatIntervalMs);
+        this.heartbeatForTicker = heartbeatForTicker;
         this.random = new Random();
         this.currentPrice = info.getInitialPrice();
     }
@@ -50,6 +59,16 @@ public class TickerSimulator implements Runnable {
 
         double tradeRate = info.getTradeRate();
         double quoteRate = info.getQuoteRate();
+
+        long startTime = System.currentTimeMillis();
+        long lastHeartbeatTime = startTime;
+        long totalTradeCount = 0;
+        long totalQuoteCount = 0;
+        long totalTradeVolume = 0;
+        long intervalTradeCount = 0;
+        long intervalQuoteCount = 0;
+        double latestBid = Double.NaN;
+        double latestAsk = Double.NaN;
 
         // Time until next trade and quote (in milliseconds)
         long nextTradeMs = sampleInterarrival(tradeRate);
@@ -76,13 +95,47 @@ public class TickerSimulator implements Runnable {
                 nextQuoteMs -= elapsed;
 
                 if (nextTradeMs <= 0) {
-                    sendTradeEvent();
+                    int tradeSize = sendTradeEvent();
+                    totalTradeCount++;
+                    intervalTradeCount++;
+                    totalTradeVolume += tradeSize;
                     nextTradeMs = sampleInterarrival(tradeRate);
                 }
 
                 if (nextQuoteMs <= 0) {
-                    sendQuoteEvent();
+                    QuoteEvent quoteEvent = sendQuoteEvent();
+                    totalQuoteCount++;
+                    intervalQuoteCount++;
+                    latestBid = quoteEvent.bidPrice();
+                    latestAsk = quoteEvent.askPrice();
                     nextQuoteMs = sampleInterarrival(quoteRate);
+                }
+
+                if (heartbeatEnabled && heartbeatForTicker && now - lastHeartbeatTime >= heartbeatIntervalMs) {
+                    double heartbeatElapsedSec = Math.max(0.001, (now - lastHeartbeatTime) / 1000.0);
+                    double totalElapsedSec = Math.max(0.001, (now - startTime) / 1000.0);
+                    double tradesPerSec = intervalTradeCount / heartbeatElapsedSec;
+                    double quotesPerSec = intervalQuoteCount / heartbeatElapsedSec;
+                    String quoteText = Double.isNaN(latestBid) || Double.isNaN(latestAsk)
+                            ? "N/A"
+                            : String.format("bid=%.4f ask=%.4f", latestBid, latestAsk);
+
+                    log.info(
+                            "Heartbeat ticker={} price={} {} totalTradeVolume={} totalTradeCount={} totalQuoteCount={} elapsedSec={} tradesPerSec={} quotesPerSec={}",
+                            info.getTicker(),
+                            currentPrice,
+                            quoteText,
+                            totalTradeVolume,
+                            totalTradeCount,
+                            totalQuoteCount,
+                            totalElapsedSec,
+                            tradesPerSec,
+                            quotesPerSec
+                    );
+
+                    lastHeartbeatTime = now;
+                    intervalTradeCount = 0;
+                    intervalQuoteCount = 0;
                 }
 
             } catch (InterruptedException e) {
@@ -121,7 +174,7 @@ public class TickerSimulator implements Runnable {
         currentPrice = Math.max(0.01, currentPrice);
     }
 
-    private void sendTradeEvent() {
+    private int sendTradeEvent() {
         double price = currentPrice;
         int size = sampleTradeSize();
         String side = random.nextBoolean() ? "BUY" : "SELL";
@@ -134,9 +187,10 @@ public class TickerSimulator implements Runnable {
                 event
         );
         kafkaTemplate.send(record);
+        return size;
     }
 
-    private void sendQuoteEvent() {
+    private QuoteEvent sendQuoteEvent() {
         double price = currentPrice;
         // Spread: price * (0.0001 + 0.0009*random)
         double spread = price * (0.0001 + 0.0009 * random.nextDouble());
@@ -158,6 +212,7 @@ public class TickerSimulator implements Runnable {
                 event
         );
         kafkaTemplate.send(record);
+        return event;
     }
 
     private boolean isExpectedShutdownException(Throwable error) {

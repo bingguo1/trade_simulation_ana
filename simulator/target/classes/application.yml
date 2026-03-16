@@ -13,11 +13,15 @@ simulator:
   default-volatility: 0.002
   batch-size: 500
   linger-ms: 5
+  heartbeat:
+    enabled: ${SIM_HEARTBEAT_ENABLED:true}
+    interval-ms: ${SIM_HEARTBEAT_INTERVAL_MS:5000}
+    tickers: ${SIM_HEARTBEAT_TICKERS:}
 
 spring:
   kafka:
     producer:
-      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+      bootstrap-servers: ${simulator.kafka.bootstrap-servers}
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:

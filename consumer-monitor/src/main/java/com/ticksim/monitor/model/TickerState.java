@@ -47,13 +47,13 @@ public class TickerState {
 
     private void tickSecond(boolean isTrade) {
         long nowSec = System.currentTimeMillis() / 1000;
-        if (nowSec != currentSecond) {
-            // Roll the window
-            tradesPerSec = tradeCountCurrent.get();
-            quotesPerSec = quoteCountCurrent.get();
-            tradeCountCurrent.set(0);
-            quoteCountCurrent.set(0);
-            currentSecond = nowSec;
+        synchronized (this) {
+            if (nowSec != currentSecond) {
+                // Roll the window — must be atomic: read, reset, advance all together
+                tradesPerSec = tradeCountCurrent.getAndSet(0);
+                quotesPerSec = quoteCountCurrent.getAndSet(0);
+                currentSecond = nowSec;
+            }
         }
         if (isTrade) {
             tradeCountCurrent.incrementAndGet();
